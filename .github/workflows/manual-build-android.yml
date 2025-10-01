@@ -23,11 +23,17 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: 🧹 Очистка кэша и получение зависимостей Flutter
-      run: |
-        flutter clean
-        # Загружаем webview_flutter: 4.0.5, указанный в pubspec.yaml
-        flutter pub get
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.x.x' # Укажите нужную версию, например, 3.19.0
+        channel: 'stable' # Или beta/master, если нужно
+      
+    - name: Clean project
+      run: flutter clean
+      
+    - name: Get dependencies
+      run: flutter pub get
       
     - name: Build APK
       # Команда flet теперь использует свежий Flutter SDK и чистый кэш.
