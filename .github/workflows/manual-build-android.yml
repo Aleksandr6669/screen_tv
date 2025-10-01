@@ -25,11 +25,6 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable' # Устанавливаем последнюю стабильную версию, которая поддерживает Dart 3.9+
-    
-    # --- Установка зависимостей Flutter (Опционально, но рекомендуется) ---
-    - name: Get Flutter dependencies
-      run: flutter pub get
-      # Flet build apk обычно делает это сам, но явный вызов может помочь
 
     - name: Build APK
       # Команда flet теперь будет использовать свежий Flutter SDK
