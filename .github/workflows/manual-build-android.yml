@@ -26,7 +26,7 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.x.x' # Укажите нужную версию, например, 3.19.0
+        flutter-version: '3.29.2' # Укажите нужную версию, например, 3.19.0
         channel: 'stable' # Или beta/master, если нужно
       
     - name: Clean project
