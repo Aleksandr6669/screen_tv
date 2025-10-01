@@ -23,12 +23,11 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: 🐦 Настройка Flutter (Dart 3.9+ совместимый)
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.22.2' # Используем современный стабильный релиз
-        channel: 'stable'
-        cache: true
+    - name: 🧹 Очистка кэша и получение зависимостей Flutter
+      run: |
+        flutter clean
+        # Загружаем webview_flutter: 4.0.5, указанный в pubspec.yaml
+        flutter pub get
       
     - name: Build APK
       # Команда flet теперь использует свежий Flutter SDK и чистый кэш.
