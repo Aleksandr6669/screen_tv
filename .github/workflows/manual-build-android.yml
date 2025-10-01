@@ -23,17 +23,6 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.29.2' # Укажите нужную версию, например, 3.19.0
-        channel: 'stable' # Или beta/master, если нужно
-      
-    - name: Clean project
-      run: flutter clean
-      
-    - name: Get dependencies
-      run: flutter pub get
       
     - name: Build APK
       # Команда flet теперь использует свежий Flutter SDK и чистый кэш.
