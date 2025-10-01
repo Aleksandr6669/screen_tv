@@ -5,6 +5,7 @@ on:
 
 jobs:
   build:
+    # Используем более современный образ runner'а, чтобы получить более новые зависимости
     runs-on: ubuntu-latest
 
     steps:
@@ -14,13 +15,25 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
-        python-version: '3.9'
+        python-version: '3.11' # Рекомендуется использовать более новую стабильную версию Python
 
     - name: Install Flet
       run: pip install flet
 
+    # --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Настройка Flutter SDK ---
+    - name: Setup Flutter SDK (Fixes Dart 3.9 requirement)
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable' # Устанавливаем последнюю стабильную версию, которая поддерживает Dart 3.9+
+    
+    # --- Установка зависимостей Flutter (Опционально, но рекомендуется) ---
+    - name: Get Flutter dependencies
+      run: flutter pub get
+      # Flet build apk обычно делает это сам, но явный вызов может помочь
+
     - name: Build APK
-      run: flet build apk  # Твоя команда для билда
+      # Команда flet теперь будет использовать свежий Flutter SDK
+      run: flet build apk  
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
