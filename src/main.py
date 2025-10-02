@@ -1,156 +1,161 @@
 import flet as ft
+import asyncio
+from datetime import datetime
+import locale
+import platform
+import flet_video as fv 
+import pytz
 
-# Константы для сетки и цветов
-GRID_SIZE = 3 # Размер сетки (3x3)
-TOTAL_ITEMS = GRID_SIZE * GRID_SIZE
-BASE_COLOR = ft.Colors.BLUE_GREY_700 # Базовый цвет невыбранного элемента
-SELECTED_COLOR = ft.Colors.YELLOW_600 # Цвет выбранного элемента
+# --- 1. НАСТРОЙКА ЛОКАЛИ (Для Русской Даты) ---
+# Устанавливаем русскую локаль для корректного отображения даты
+if platform.system() == "Windows":
+    locale.setlocale(locale.LC_TIME, "Russian_Russia.1251")
+else:
+    try:
+        locale.setlocale(locale.LC_TIME, "ru_RU.UTF-8")
+    except locale.Error:
+        try:
+            locale.setlocale(locale.LC_TIME, "ru_RU")
+        except locale.Error:
+            pass 
 
-def create_menu_item(index: int) -> ft.Container:
-    """Создает контейнер для одного пункта меню."""
-    return ft.Container(
-        content=ft.Text(f"Канал {index + 1}", color=ft.Colors.WHITE, size=18, weight=ft.FontWeight.W_500),
-        width=150,
-        height=100,
-        bgcolor=BASE_COLOR,
-        border_radius=ft.border_radius.all(10),
-        alignment=ft.alignment.center,
-        data=index, # Храним индекс для идентификации
-        # Обработчик клика/Enter (в консоль будет выведено сообщение)
-        on_click=lambda e: print(f"Выбран канал: {e.control.data + 1}"),
-        # Добавляем тень для лучшего вида
-        shadow=ft.BoxShadow(
-            spread_radius=1,
-            blur_radius=5,
-            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
-            offset=ft.Offset(0, 2),
-            blur_style=ft.ShadowBlurStyle.OUTER,
-        )
-    )
 
 def main(page: ft.Page):
-    page.title = "TV Menu Simulator"
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.bgcolor = ft.Colors.BLUE_GREY_900
+    page.title = "Цифровые Часы (Видео-Фон)"
+    page.bgcolor = ft.Colors.BLACK 
+    page.padding = 0 
+    page.window_full_screen = True 
     
-    # Сбрасываем лишние элементы из вашего шаблона
-    page.floating_action_button = None
-
-    # --- Инициализация состояния и элементов ---
+    # --- 2. ЭЛЕМЕНТЫ ТЕКСТА ---
     
-    # selected_index будет хранить текущий выбранный индекс (от 0 до 8)
-    page.selected_index = 0 
-    menu_items = [create_menu_item(i) for i in range(TOTAL_ITEMS)]
-
-    # Сетка для отображения меню
-    menu_grid = ft.GridView(
-        controls=menu_items,
-        runs_count=GRID_SIZE,
-        child_aspect_ratio=1.5,
-        spacing=20,
-        run_spacing=20,
-        width=550, # Ширина для 3 колонок с отступами
-        height=350, # Высота для 3 рядов с отступами
-    )
-    
-    # --- Логика обновления интерфейса ---
-
-    def update_selection_ui(new_index: int):
-        """Обновляет визуальное состояние элементов при смене выбора."""
-        
-        # Снимаем выделение со старого элемента
-        if 0 <= page.selected_index < TOTAL_ITEMS:
-            old_item = menu_items[page.selected_index]
-            old_item.bgcolor = BASE_COLOR
-            old_item.content.weight = ft.FontWeight.W_500
-            old_item.content.scale = 1.0
-            old_item.update()
-
-        # Выделяем новый элемент
-        page.selected_index = new_index
-        new_item = menu_items[page.selected_index]
-        new_item.bgcolor = SELECTED_COLOR
-        new_item.content.weight = ft.FontWeight.BOLD # Жирный шрифт
-        new_item.content.scale = 1.1 # Немного увеличиваем
-        new_item.update()
-
-    # Начальное выделение первого элемента
-    # update_selection_ui(0)
-
-    # --- Обработчик нажатий клавиш ("пульта") ---
-    
-    def on_keyboard(e: ft.KeyboardEvent):
-        """Обрабатывает нажатия стрелок для навигации."""
-        key = e.key
-        current_index = page.selected_index
-        new_index = current_index
-
-        if key == "Arrow Right":
-            # Вправо: если не в конце текущего ряда
-            if (current_index + 1) % GRID_SIZE != 0:
-                new_index = current_index + 1
-        elif key == "Arrow Left":
-            # Влево: если не в начале текущего ряда
-            if current_index % GRID_SIZE != 0:
-                new_index = current_index - 1
-        elif key == "Arrow Down":
-            # Вниз: если не в нижнем ряду
-            if current_index + GRID_SIZE < TOTAL_ITEMS:
-                new_index = current_index + GRID_SIZE
-        elif key == "Arrow Up":
-            # Вверх: если не в верхнем ряду
-            if current_index - GRID_SIZE >= 0:
-                new_index = current_index - GRID_SIZE
-        elif key == "Enter":
-            # Нажатие Enter симулирует выбор
-            print(f"ENTER (Выбор) на канале: {current_index + 1}")
-            # Выполняем логику, которая была бы при клике
-            menu_items[current_index].on_click(None) 
-
-        # Обновляем UI, если индекс изменился
-        if new_index != current_index:
-            update_selection_ui(new_index)
-        
-        # Предотвращаем стандартное поведение браузера (например, прокрутку страницы)
-        if key in ["Arrow Right", "Arrow Left", "Arrow Down", "Arrow Up", "Enter"]:
-            e.preventDefault = True
-            page.update()
-
-    # Привязываем обработчик к странице
-    page.on_keyboard_event = on_keyboard
-
-    # Инструкции для пользователя
-    instructions = ft.Text(
-        "Управляйте меню с помощью клавиш-стрелок (↑, ↓, ←, →) и 'Enter' для выбора.",
-        color=ft.Colors.WHITE,
-        size=16,
-        weight=ft.FontWeight.W_300,
+    # Время: Крупный, жирный шрифт в левом нижнем углу
+    time_text = ft.Text(
+        "00:00:00", 
+        color=ft.Colors.WHITE, 
+        size=60,
+        # weight=ft.FontWeight.w900, 
         font_family="Inter",
     )
     
-    # Главный контейнер для центрирования
-    main_content = ft.Column(
-        [
-            instructions,
-            ft.Container(height=20),
-            menu_grid
-        ],
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        alignment=ft.MainAxisAlignment.CENTER
+    # Дата: Более тонкий шрифт в правом нижнем углу
+    date_text = ft.Text(
+        "Дата", 
+        color=ft.Colors.WHITE, 
+        size=18, 
+        # weight=ft.FontWeight.w300, 
+        font_family="Inter",
     )
 
+    # --- 3. НАСТРОЙКА ВИДЕОПЛЕЕРА ---
+    
+    # Создаем плейлист из одного медиа-источника
+    video_playlist = [
+        fv.VideoMedia(
+            # Используем YouTube ссылку, как в вашем примере
+            # Для локального файла используйте: fv.VideoMedia("/assets/your_video.mp4")
+            # "https://cdn.pixabay.com/video/2024/06/20/217489.mp4",
+            # "https://cdn.pixabay.com/video/2022/12/01/141309-777508139.mp4",
+            "https://cdn.pixabay.com/video/2024/06/23/217932.mp4",
+            # Добавляем кэширование, чтобы видео не перезагружалось при повторах
+            # http_headers={"Cache-Control": "max-age=31536000"} 
+        )
+    ]
+    
+    # Инициализация плеера
+    video_player = fv.Video(
+        playlist=video_playlist, 
+        playlist_mode=fv.PlaylistMode.LOOP, # Зацикливание видео
+        fit=ft.ImageFit.COVER, 
+        muted=False,
+        volume=0,             # Без звука
+        autoplay=True,        # Автозапуск
+        expand=True,          # Растягиваем на весь доступный размер
+    )
+
+    image_url = "/IMAGE/ai-generated-9387013_1920.png" 
+    
+    background_image = ft.Image(
+        src=image_url,
+        # Указываем конкретную ширину и высоту для 4K
+        width=3840, 
+        height=2160,
+        fit=ft.ImageFit.FILL, # Растягиваем на весь доступный размер
+        expand=True,
+    )
+
+    FRAME_IMAGE_URL = "/FRAME_IMAGE/border-318820_1920.png" 
+
+    frame_overlay = ft.Image(
+        src=FRAME_IMAGE_URL,
+        width=3840, 
+        height=2160,
+        fit=ft.ImageFit.FILL, # Растягиваем изображение рамки, чтобы оно заполнило контейнер
+        expand=True,
+    )
+
+    framed_picture_stack = ft.Stack(
+        [
+            background_image,     # Слой 1: Видео (фон картины)
+            # video_player,
+            frame_overlay,    # Слой 2: Изображение рамки (поверх видео)
+        ],
+        expand=True
+    )
+
+    # --- 4. АСИНХРОННЫЙ ЦИКЛ ОБНОВЛЕНИЯ ЧАСОВ ---
+    async def update_time_loop():
+        local_timezone = pytz.timezone('Europe/Kiev') 
+        """Бесконечный цикл, обновляющий время и дату каждую секунду."""
+        while True:
+            utc_now = datetime.now(pytz.utc)
+            now = utc_now.astimezone(local_timezone) 
+            # now = datetime.now()
+            
+            time_text.value = now.strftime("%H:%M") 
+            
+            # Форматирование: 'Среда, 02 Октябрь 2025 г.'
+            formatted_date = now.strftime("%A, %d %B %Y г.").capitalize()
+            date_text.value = formatted_date
+            
+            page.update() 
+            await asyncio.sleep(1) 
+
+    # --- 5. РАЗМЕЩЕНИЕ КОНТЕНТА (Stack) ---
+
+    # Элемент для позиционирования времени и даты по углам
+    bottom_bar = ft.Row(
+        [
+            date_text,
+            time_text,
+            
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN, 
+        vertical_alignment=ft.CrossAxisAlignment.END,
+    )
+
+    # Контейнер-накладка для прижимания bottom_bar вниз
+    content_overlay = ft.Container(
+        content=bottom_bar,
+        alignment=ft.alignment.bottom_center, 
+        expand=True,
+        # Отступы от краев экрана
+        padding=ft.padding.only(bottom=50, left=70, right=70) 
+    )
+
+    # Stack: Наложение видео (1-й слой) и контента (2-й слой)
     page.add(
-        ft.SafeArea(
-            ft.Container(
-                main_content,
-                alignment=ft.alignment.center,
-                expand=True,
-                padding=ft.padding.all(20),
-            ),
-            expand=True,
+        ft.Stack(
+            [   
+                framed_picture_stack ,
+                content_overlay,
+            ],
+            expand=True 
         )
     )
+    
+    # Запуск цикла обновления времени в фоновом режиме
+    page.run_task(update_time_loop)
 
 if __name__ == "__main__":
-    ft.app(target=main, assets_dir='assets')
+    # Убедитесь, что плагин flet_video установлен: pip install flet-video
+    ft.app(target=main)
