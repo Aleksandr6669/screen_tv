@@ -41,168 +41,368 @@ def main(page: ft.Page):
     def on_settings_update(message):
         display_id = get_last_path_segment(page)
         if message == display_id:
-            # Clear the page and redraw the clock to reflect new settings
             page.clean()
             show_clock()
             page.update()
 
     def is_video_file(filename):
-        video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm'] # Add more video extensions if needed
+        video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
         return os.path.splitext(filename)[1].lower() in video_extensions
 
     page.pubsub.subscribe(on_settings_update)
 
     def show_admin_panel():
         page.title = "Admin Panel"
-        page.padding = 20
-        page.window_width = 500
-        page.window_height = 800
-        page.scroll = ft.ScrollMode.AUTO
+        page.padding = ft.padding.only(left=5, right=5)
+        page.scroll = ft.ScrollMode.HIDDEN
 
-        image_files = get_file_names("src/assets/IMAGE")
-        video_files = get_file_names("src/assets/VIDEO")
-        video_files = [f for f in video_files if is_video_file(f)] # Filter for actual video files
-        frame_files = get_file_names("src/assets/FRAME_IMAGE")
+        # --- Get available media files ---
+        image_files = sorted(get_file_names("src/assets/IMAGE"))
+        video_files = sorted([f for f in get_file_names("src/assets/VIDEO") if is_video_file(f)])
+        frame_files = sorted(get_file_names("src/assets/FRAME_IMAGE"))
         all_timezones = pytz.all_timezones
-    
-        def create_thumbnail_preview(file_path):
-            # Construct the full path for the thumbnail. Assuming thumbnails are in the same directory as the source file
-            # and for videos, there is a .png thumbnail with the same name.
-            full_path = os.path.join("src/assets", file_path.lstrip('/'))
-            if os.path.exists(full_path):
-                # Use a Container with a border and specific size for consistent display
-                return ft.Container(content=ft.Image(src=file_path, width=50, height=50, fit=ft.ImageFit.COVER), width=50, height=50, bgcolor=ft.Colors.BLUE_GREY_700 )
-            return ft.Container() # Return empty container if no file or "None"
 
-        def on_bg_image_change(e):
-            bg_image_preview.content = create_thumbnail_preview(f"/IMAGE/{bg_image_dropdown.value}")
-            page.update()
-            if bg_image_dropdown.value != "None":
-                video_dropdown.value = "None"  # Clear video selection
-                on_video_change(None)  # Update video preview
+        # --- State Management for selections ---
+        admin_state = {
+            "bg_image": None,
+            "frame_image": None,
+            "video": None,
+        }
 
-        def on_frame_image_change(e):
-            frame_image_preview.content = create_thumbnail_preview(f"/FRAME_IMAGE/{frame_image_dropdown.value}")
-            page.update()
-
-        def on_video_change(e):
-            # Construct the path for the video thumbnail (assuming .png extension)
-            video_filename = video_dropdown.value
-            if video_filename and video_filename != "None":
-                thumbnail_path = f"/VIDEO/{os.path.splitext(video_filename)[0]}.png"
-                video_preview.content = create_thumbnail_preview(thumbnail_path)
-                bg_image_dropdown.value = "None"  # Clear background image selection
-                on_bg_image_change(None)  # Update background image preview
-            else:
-                video_preview.content = ft.Container() # Display empty container if no video selected
-            page.update()
-
-        id_input = ft.TextField(label="Display ID", width=250)
-
-        bg_image_options = [ft.dropdown.Option("None")] + [
-            ft.dropdown.Option(
-                key=file,
-                content=ft.Row([create_thumbnail_preview(f"/IMAGE/{file}"), ft.Text(file)]), # Combine thumbnail and text
-                data=file # Store file name in data
-            ) for file in sorted(image_files)
-            ]
-        bg_image_dropdown = ft.Dropdown(label="Background Image", options=bg_image_options, width=300, on_change=on_bg_image_change)
-        bg_image_preview = ft.Container()
-
-        # Need to define video_preview here so it's accessible in on_bg_image_change
-        
-        video_dropdown = ft.Dropdown(label="Video", options=[], width=300, on_change=on_video_change) # Define video_dropdown early
-        video_preview = ft.Container()
-
-        frame_image_options = [ft.dropdown.Option("None")] + [
-            ft.dropdown.Option(
-                key=file,
-                content=ft.Row([create_thumbnail_preview(f"/FRAME_IMAGE/{file}"), ft.Text(file)]), # Combine thumbnail and text
-                data=file
-            ) for file in sorted(frame_files)
-            ]
-        frame_image_dropdown = ft.Dropdown(label="Frame Image", options=frame_image_options, width=300, on_change=on_frame_image_change)
-        frame_image_preview = ft.Container()
-
-        video_options = [ft.dropdown.Option("None")] + [
-            ft.dropdown.Option(
-                key=file,
-                content=ft.Row([create_thumbnail_preview(f"/VIDEO/{os.path.splitext(file)[0]}.png"), ft.Text(file)]), # Use video thumbnail
-                data=file
-             ) for file in sorted(video_files)
-            ]
-
-        timezone_options = [ft.dropdown.Option(tz) for tz in all_timezones]
-        timezone_dropdown = ft.Dropdown(label="Timezone", options=timezone_options, width=400)
+        # --- UI Controls ---
+        id_input = ft.TextField(width=250, border_radius=12)
         status_text = ft.Text()
-    
+
+
+
+        def filter_timezone_options(e):
+            """Filters the timezone dropdown based on user input."""
+            search_term = e.control.value.lower()
+            if not search_term:
+                filtered_options = [ft.dropdown.Option(tz) for tz in all_timezones]
+                # timezone_dropdown.options = [ft.dropdown.Option(tz) for tz in all_timezones]
+            else:
+                filtered_options = [
+                    ft.dropdown.Option(tz) for tz in all_timezones if search_term in tz.lower()
+                ]
+            timezone_dropdown.options = filtered_options
+
+            if timezone_dropdown.options:
+                timezone_dropdown.value = timezone_dropdown.options[0].key
+            else:
+                timezone_dropdown.value = None
+            
+            page.update()
+
+
+        search_timezone = ft.TextField(
+            label="Search Timezone",
+            width=300,
+            border_radius=20,
+            on_change=filter_timezone_options
+        )
+
+        timezone_dropdown = ft.Dropdown(
+            label="Timezone",
+            options=[ft.dropdown.Option(tz) for tz in all_timezones],
+            width=300,
+            border_radius=20
+        )
+        
+        # Rows for horizontal lists
+        bg_image_row = ft.Row(scroll=ft.ScrollMode.HIDDEN)
+        frame_image_row = ft.Row(scroll=ft.ScrollMode.HIDDEN)
+        video_row = ft.Row(scroll=ft.ScrollMode.HIDDEN)
+
+        # --- Core Functions for UI Update and Selection ---
+
+        # def create_thumbnail(file_path, filename, on_click_handler, is_selected):
+        #     return ft.GestureDetector(
+        #         on_tap=on_click_handler,
+        #         data=filename,
+        #         content=ft.Container(
+        #             content=ft.Image(src=file_path, width=200, height=120, fit=ft.ImageFit.FILL, border_radius=ft.border_radius.all(10)),
+        #             width=205,
+        #             height=125,
+        #             border=ft.border.all(5, ft.Colors.BLUE) if is_selected else None,
+        #             border_radius=ft.border_radius.all(12),
+        #         )
+        #     )
+
+        def create_thumbnail(file_path, filename, on_click_handler, is_selected):
+            # Основной виджет изображения
+            image_widget = ft.Image(
+                src=file_path, 
+                width=200, 
+                height=120, 
+                fit=ft.ImageFit.FILL, 
+                border_radius=ft.border_radius.all(10)
+            )
+
+            # Иконка галочки, которая будет накладываться
+            checkmark_icon = ft.Icon(
+                ft.Icons.CHECK_CIRCLE,
+                color=ft.Colors.GREEN,
+                size=30
+            )
+
+            # Используем Stack, чтобы расположить иконку поверх изображения
+            content_stack = ft.Stack(
+                [
+                    image_widget,
+                    # Контейнер для иконки позволяет точно ее позиционировать
+                    ft.Container(
+                        content=checkmark_icon,
+                        alignment=ft.alignment.bottom_left, # Позиция в правом нижнем углу
+                        visible=is_selected # Видимость зависит от того, выбран ли элемент
+                    )
+                ]
+            )
+
+            # Основная кликабельная область
+            return ft.GestureDetector(
+                on_tap=on_click_handler,
+                data=filename,
+                content=ft.Container(
+                    content=content_stack,
+                    width=200,
+                    height=120,
+                    alignment=ft.alignment.center,
+                    border_radius=ft.border_radius.all(12),
+                )
+            )
+
+        def update_watch_page_ui():
+            '''Rebuilds the content of the media selection rows based on the current state.'''
+            bg_image_row.controls = [
+                create_thumbnail(f"/THUMBNAILS/{f}", f, select_bg_image, f == admin_state["bg_image"])
+                for f in image_files
+            ]
+            frame_image_row.controls = [
+                create_thumbnail(f"/THUMBNAILS/{f}", f, select_frame_image, f == admin_state["frame_image"])
+                for f in frame_files
+            ]
+            video_row.controls = [
+                create_thumbnail(f"/THUMBNAILS/{os.path.splitext(f)[0]}.png", f, select_video, f == admin_state["video"])
+                for f in video_files
+            ]
+            page.update()
+
+        def select_bg_image(e):
+            filename = e.control.data
+            admin_state["bg_image"] = filename if admin_state["bg_image"] != filename else None
+            if admin_state["bg_image"]:
+                admin_state["video"] = None  # Deselect video
+            update_watch_page_ui()
+
+        def select_frame_image(e):
+            filename = e.control.data
+            admin_state["frame_image"] = filename if admin_state["frame_image"] != filename else None
+            update_watch_page_ui()
+
+        def select_video(e):
+            filename = e.control.data
+            admin_state["video"] = filename if admin_state["video"] != filename else None
+            if admin_state["video"]:
+                admin_state["bg_image"] = None # Deselect background image
+            update_watch_page_ui()
+            
+        # --- Load/Save Functions ---
         def load_settings(e):
             display_id = id_input.value
-
             settings = get_settings_by_id(display_id)
             if settings:
-                # Update dropdown options before setting value to ensure options exist
-                bg_image_dropdown.value = settings.get('bg_image_url') or "None"
-                frame_image_dropdown.value = settings.get('frame_image_url') or "None"
-                video_dropdown.value = settings.get('video_url') or "None"
-                # Trigger the change events to update previews on load
-                on_bg_image_change(None) # Update preview on load
-                on_frame_image_change(None) # Update preview on load
-                on_video_change(None) # Update preview on load
+                admin_state["bg_image"] = settings.get('bg_image_url') or None
+                admin_state["frame_image"] = settings.get('frame_image_url') or None
+                admin_state["video"] = settings.get('video_url') or None
                 timezone_dropdown.value = settings.get('timezone', DEFAULT_TIMEZONE)
                 status_text.value = f"Loaded settings for ID: {display_id}"
                 status_text.color = ft.Colors.GREEN
-
             else:
-                bg_image_dropdown.value = "None"
-                frame_image_dropdown.value = "None"
-                video_dropdown.value = "None"
+                admin_state["bg_image"] = None
+                admin_state["frame_image"] = None
+                admin_state["video"] = None
                 timezone_dropdown.value = DEFAULT_TIMEZONE
                 status_text.value = f"No settings found for ID: {display_id}. You can create new settings."
                 status_text.color = ft.Colors.ORANGE
+            update_watch_page_ui()
             page.update()
 
         def save_settings(e):
             display_id = id_input.value
+            if not display_id:
+                status_text.value = "Please enter a Display ID before saving."
+                status_text.color = ft.Colors.RED
+                page.update()
+                return
+
             settings = {
-                'bg_image_url': bg_image_dropdown.value if bg_image_dropdown.value != "None" else "",
-                'frame_image_url': frame_image_dropdown.value if frame_image_dropdown.value != "None" else "",
-                'video_url': video_dropdown.value if video_dropdown.value != "None" else "",
+                'bg_image_url': admin_state["bg_image"],
+                'frame_image_url': admin_state["frame_image"],
+                'video_url': admin_state["video"],
                 'timezone': timezone_dropdown.value
             }
-
             update_or_create_settings(display_id, settings)
             status_text.value = f"Settings for ID: {display_id} saved successfully!"
             status_text.color = ft.Colors.GREEN
-
             page.pubsub.send_all(message=display_id)
             page.update()
+        
+        # load_button = ft.ElevatedButton(text="Load", on_click=load_settings)
 
-        # Set video dropdown options after defining video_dropdown and video_files
-        video_dropdown.options = video_options
+        load_button = ft.CupertinoButton(
+            content=ft.Text("Load", color=ft.Colors.GREY_300),
+            bgcolor=ft.Colors.GREEN_400,
+            alignment=ft.alignment.top_left,
+            border_radius=ft.border_radius.all(12),
+            opacity_on_click=0.7,
+            on_click=load_settings,
+        )
 
-        # Initial update of previews
-        on_bg_image_change(None)
-        on_video_change(None)
-        load_button = ft.ElevatedButton(text="Load", on_click=load_settings)
-        save_button = ft.ElevatedButton(text="Save", on_click=save_settings)
+        # save_button = ft.ElevatedButton(text="Save", on_click=save_settings)
 
-        page.add(
-            ft.Column(
-                [
-                    ft.Row([id_input, load_button], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Row([bg_image_dropdown, bg_image_preview]),
-                    ft.Row([frame_image_dropdown, frame_image_preview]), # Display frame preview
-                    ft.Row([video_dropdown, video_preview]), # Placeholder for video selection
-                    timezone_dropdown,
+        save_button = ft.CupertinoButton(
+            content=ft.Text("Save", color=ft.Colors.GREY_300),
+            bgcolor=ft.Colors.GREEN_400,
+            alignment=ft.alignment.top_left,
+            border_radius=ft.border_radius.all(12),
+            opacity_on_click=0.7,
+            on_click=save_settings,
+        )
+
+
+        
+
+        # --- Page Content Definitions ---
+        def get_watch_page():
+            # Initial build of the rows
+            update_watch_page_ui()
+            return ft.Column(
+                [   
+                    ft.Container(),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("ID app TV", size=18, theme_style=ft.TextThemeStyle.HEADLINE_SMALL),
+                                    ft.Row([id_input, load_button], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                ]
+                            ),
+                            # width=400,
+                            padding=10,
+                        ),
+                        shadow_color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Background Image", size=18),
+                                    bg_image_row,
+                                ]
+                            ),
+                            # width=400,
+                            padding=10,
+                        ),
+                        shadow_color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Frame Image", size=18),
+                                    frame_image_row,
+                                ]
+                            ),
+                            # width=400,
+                            padding=10,
+                        ),
+                        shadow_color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Background Video", size=18),
+                                    video_row,
+                                ]
+                            ),
+                            # width=400,
+                            padding=10,
+                        ),
+                        shadow_color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    
+                    
+                    
                     save_button,
                     status_text
                 ],
-                spacing=20,
-                scroll=ft.ScrollMode.AUTO
+                spacing=15,
             )
+
+        def get_widget_page():
+            return ft.Column([ft.Text("Widget Page - Placeholder", size=20)])
+
+        def get_settings_page():
+            return ft.Column(
+                [
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Text("Settings Page - Placeholder", size=20),
+                                    search_timezone,
+                                    timezone_dropdown, 
+                                ]
+                            ),
+                            width=600,
+                            padding=10,
+                        ),
+                        shadow_color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    
+                    
+                    save_button,
+                    status_text
+                    
+                ]
+            )
+        
+        # --- Main Content Area & Navigation ---
+        page_content = ft.Container(content=get_watch_page(), expand=True)
+
+        def on_navigation_change(e):
+            selected_index = e.control.selected_index
+            if selected_index == 0:
+                page_content.content = get_watch_page()
+            elif selected_index == 1:
+                page_content.content = get_widget_page()
+            elif selected_index == 2:
+                page_content.content = get_settings_page()
+            page.update()
+
+        # --- Page Setup ---
+        page.appbar = ft.AppBar(
+            # adaptive = True,
+            title=ft.Text("Admin Panel"),
+            center_title=True,
+            bgcolor=ft.Colors.GREEN,
+            automatically_imply_leading=False,
         )
+        page.navigation_bar = ft.NavigationBar(
+            destinations=[
+                ft.NavigationBarDestination(icon=ft.Icons.IMAGE_SEARCH, label="Media"),
+                ft.NavigationBarDestination(icon=ft.Icons.WIDGETS_OUTLINED, label="Widgets"),
+                ft.NavigationBarDestination(icon=ft.Icons.SETTINGS_OUTLINED, label="Settings"),
+            ],
+            on_change=on_navigation_change,
+            selected_index=0
+        )
+
+        page.add(page_content)
         page.update()
+
 
     def show_clock():
         page.title = "Заставка"
@@ -287,8 +487,7 @@ def main(page: ft.Page):
         top_overlay = ft.Container(content=top_bar, alignment=ft.alignment.top_center, expand=True, padding=ft.padding.only(top=50, left=70, right=70))
         center_overlay = ft.Container(content=center_bar, alignment=ft.alignment.center, expand=True, padding=ft.padding.only(left=70, right=70))
         bottom_overlay = ft.Container(content=bottom_bar, alignment=ft.alignment.bottom_center, expand=True, padding=ft.padding.only(bottom=50, left=70, right=70))
-        # top_overlay = ft.Container(content=id_text, alignment=ft.alignment.top_right, expand=True, padding=ft.padding.only(top=50, left=70, right=70))
-
+        
         page.add(ft.Stack([media_stack, center_overlay, top_overlay, bottom_overlay], expand=True))
         page.run_task(update_time_loop)
         page.update()
