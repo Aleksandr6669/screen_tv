@@ -1,0 +1,42 @@
+{
+   "name": "Додатки PWA",
+   "type": "pages",
+   "headline": "Додатки PWA",
+  "dictionary": "",
+
+   "template": {
+      "type": "separate",
+      "layout": "0,0,2,3",
+      "alignment":"title-center",
+      "color": "msx-glass"
+   },
+"items": [
+      {
+	"tag": "Test",
+	"title": "Поиск кнопок",
+         "image": "https://9000-firebase-assistant-1762424926779.cluster-r7kbxfo3fnev2vskbkhhphetq6.cloudworkstations.dev/favicon.png",
+         "action": "link:https://9000-firebase-assistant-1762424926779.cluster-r7kbxfo3fnev2vskbkhhphetq6.cloudworkstations.dev/?monospaceUid=269762"
+          
+      },
+      {
+	"tag": "screen",
+	"title": " Заставка",
+        "image": "http://msx.lh1.in/msx/pic/dstore-2.jpg",
+        "action": "link:https://screen-tv.onrender.com/12345678"
+       },
+{
+	
+         "title": "Youtube",
+    "image": "http://msx.lh1.in/picsys/youtube.jpg",
+    "action": "link:https://www.youtube.com/tv#/"
+
+},
+{
+	
+         "title": "Telegram",
+    "image": "https://web.telegram.org/k/assets/img/android-chrome-144x144.png?v=jw3mK7G9Ry",
+    "action": "link:https://web.telegram.org/k"
+
+}
+   ]
+}
